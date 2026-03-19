@@ -1,0 +1,269 @@
+# Internal helper functions
+
+# Minimum scale threshold for normalized conformal scoring
+MIN_SCALE <- 1e-6
+
+validate_x <- function(x, arg = "x") {
+  if (is.data.frame(x)) {
+    x <- as.matrix(x)
+  }
+  if (!is.matrix(x) && !is.numeric(x)) {
+    cli_abort("{.arg {arg}} must be a numeric matrix or data frame.")
+  }
+  if (!is.matrix(x)) {
+    x <- matrix(x, ncol = 1)
+  }
+  if (nrow(x) == 0) {
+    cli_abort("{.arg {arg}} must have at least one row.")
+  }
+  if (any(is.na(x))) {
+    cli_abort("{.arg {arg}} must not contain NA values.")
+  }
+  if (any(!is.finite(x))) {
+    cli_abort("{.arg {arg}} must not contain NaN or Inf values.")
+  }
+  # Ensure consistent column names so train/predict data frames match
+  if (is.null(colnames(x))) {
+    colnames(x) <- paste0("X", seq_len(ncol(x)))
+  }
+  x
+}
+
+validate_y_reg <- function(y) {
+  if (!is.numeric(y)) {
+    cli_abort("{.arg y} must be a numeric vector for regression.")
+  }
+
+  if (any(is.na(y))) {
+    cli_abort("{.arg y} must not contain NA values.")
+  }
+  if (any(!is.finite(y))) {
+    cli_abort("{.arg y} must not contain NaN or Inf values.")
+  }
+  if (length(unique(y)) == 1) {
+    cli_warn("{.arg y} has only one unique value. Prediction intervals will have zero width.")
+  }
+  y
+}
+
+validate_y_class <- function(y) {
+  if (!is.factor(y)) {
+    y <- factor(y)
+  }
+  if (any(is.na(y))) {
+    cli_abort("{.arg y} must not contain NA values.")
+  }
+  y
+}
+
+validate_x_new <- function(x, x_new) {
+  if (ncol(x) != ncol(x_new)) {
+    cli_abort("{.arg x_new} must have {ncol(x)} column{?s}, not {ncol(x_new)}.")
+  }
+}
+
+validate_probs_colnames <- function(probs, y, arg = "probability matrix") {
+  if (ncol(probs) < 2) {
+    cli_abort("The {arg} must have at least 2 columns (classes).")
+  }
+  missing_levels <- setdiff(levels(y), colnames(probs))
+  if (length(missing_levels) > 0) {
+    cli_abort(
+      "The {arg} is missing columns for class level{?s}: {.val {missing_levels}}."
+    )
+  }
+}
+
+validate_alpha <- function(alpha) {
+  if (!is.numeric(alpha) || length(alpha) != 1 || alpha <= 0 || alpha >= 1) {
+    cli_abort("{.arg alpha} must be a single number between 0 and 1 (exclusive).")
+  }
+  alpha
+}
+
+split_data <- function(n, cal_fraction, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  n_cal <- floor(n * cal_fraction)
+  n_train <- n - n_cal
+  if (n_train < 2) {
+    cli_abort("Not enough data for training after split. Reduce {.arg cal_fraction}.")
+  }
+  if (n_cal < 1) {
+    cli_abort("Not enough data for calibration. Increase {.arg cal_fraction}.")
+  }
+  idx <- sample.int(n)
+  list(
+    train = idx[seq_len(n_train)],
+    cal = idx[(n_train + 1):n]
+  )
+}
+
+kfold_split <- function(n, n_folds, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  idx <- sample.int(n)
+  fold_ids <- rep(seq_len(n_folds), length.out = n)
+  folds <- vector("list", n_folds)
+  for (k in seq_len(n_folds)) {
+    folds[[k]] <- idx[fold_ids == k]
+  }
+  folds
+}
+
+conformal_quantile <- function(scores, alpha) {
+  n <- length(scores)
+  k <- ceiling((n + 1) * (1 - alpha))
+  if (k > n) return(Inf)
+  sort(scores)[k]
+}
+
+regression_scores <- function(y, yhat) {
+  abs(y - yhat)
+}
+
+# Classification helpers
+
+aps_scores <- function(probs, y_true, randomize = FALSE) {
+  n <- nrow(probs)
+  classes <- colnames(probs)
+  scores <- numeric(n)
+
+  for (i in seq_len(n)) {
+    p <- probs[i, ]
+    ord <- order(p, decreasing = TRUE)
+    sorted_p <- p[ord]
+    sorted_classes <- classes[ord]
+    cumprobs <- cumsum(sorted_p)
+    true_class <- as.character(y_true[i])
+    rank_true <- which(sorted_classes == true_class)
+    if (length(rank_true) == 0) {
+      scores[i] <- 1.0
+      next
+    }
+    score <- cumprobs[rank_true]
+    if (randomize && rank_true >= 1) {
+      u <- stats::runif(1)
+      score <- score - u * sorted_p[rank_true]
+    }
+    scores[i] <- score
+  }
+  scores
+}
+
+raps_scores <- function(probs, y_true, k_reg = 1, lambda = 0.01,
+                         randomize = FALSE) {
+  n <- nrow(probs)
+  classes <- colnames(probs)
+  scores <- numeric(n)
+
+  for (i in seq_len(n)) {
+    p <- probs[i, ]
+    ord <- order(p, decreasing = TRUE)
+    sorted_p <- p[ord]
+    sorted_classes <- classes[ord]
+    cumprobs <- cumsum(sorted_p)
+    true_class <- as.character(y_true[i])
+    rank_true <- which(sorted_classes == true_class)
+    if (length(rank_true) == 0) {
+      scores[i] <- 1.0 + lambda * max(0, length(classes) - k_reg)
+      next
+    }
+    penalty <- lambda * max(0, rank_true - k_reg)
+    score <- cumprobs[rank_true] + penalty
+    if (randomize && rank_true >= 1) {
+      u <- stats::runif(1)
+      score <- score - u * sorted_p[rank_true]
+    }
+    scores[i] <- score
+  }
+  scores
+}
+
+lac_scores <- function(probs, y_true) {
+  y_idx <- match(as.character(y_true), colnames(probs))
+  if (any(is.na(y_idx))) {
+    unseen <- unique(as.character(y_true)[is.na(y_idx)])
+    cli_abort(
+      "True class label{?s} {.val {unseen}} not found in probability matrix columns."
+    )
+  }
+  1 - probs[cbind(seq_len(nrow(probs)), y_idx)]
+}
+
+build_aps_sets <- function(probs, threshold) {
+  n <- nrow(probs)
+  classes <- colnames(probs)
+  sets <- vector("list", n)
+  set_probs <- vector("list", n)
+
+  for (i in seq_len(n)) {
+    p <- probs[i, ]
+    ord <- order(p, decreasing = TRUE)
+    sorted_p <- p[ord]
+    sorted_classes <- classes[ord]
+    cumprobs <- cumsum(sorted_p)
+    k <- which(cumprobs >= threshold)[1]
+    if (is.na(k)) k <- length(classes)
+    included <- sorted_classes[seq_len(k)]
+    sets[[i]] <- included
+    set_probs[[i]] <- setNames(sorted_p[seq_len(k)], included)
+  }
+  list(sets = sets, probs = set_probs)
+}
+
+build_raps_sets <- function(probs, threshold, k_reg = 1, lambda = 0.01) {
+  n <- nrow(probs)
+  classes <- colnames(probs)
+  sets <- vector("list", n)
+  set_probs <- vector("list", n)
+
+  for (i in seq_len(n)) {
+    p <- probs[i, ]
+    ord <- order(p, decreasing = TRUE)
+    sorted_p <- p[ord]
+    sorted_classes <- classes[ord]
+    cumprobs <- cumsum(sorted_p)
+    penalties <- lambda * pmax(0, seq_along(sorted_p) - k_reg)
+    penalized <- cumprobs + penalties
+    k <- which(penalized >= threshold)[1]
+    if (is.na(k)) k <- length(classes)
+    included <- sorted_classes[seq_len(k)]
+    sets[[i]] <- included
+    set_probs[[i]] <- setNames(sorted_p[seq_len(k)], included)
+  }
+  list(sets = sets, probs = set_probs)
+}
+
+build_lac_sets <- function(probs, threshold) {
+  n <- nrow(probs)
+  classes <- colnames(probs)
+  sets <- vector("list", n)
+  set_probs <- vector("list", n)
+
+  for (i in seq_len(n)) {
+    p <- probs[i, ]
+    included <- classes[p >= 1 - threshold]
+    if (length(included) == 0) {
+      included <- classes[which.max(p)]
+    }
+    sets[[i]] <- included
+    set_probs[[i]] <- setNames(p[included], included)
+  }
+  list(sets = sets, probs = set_probs)
+}
+
+# Weighted conformal quantile per Tibshirani et al. (2019), Eq. 5:
+# q = inf{q : sum_{i: s_i <= q} w_i / (sum_j w_j + w_{n+1}) >= 1 - alpha}
+# where w_{n+1} is the test-point weight (unknown at calibration time).
+# Following standard practice, we set w_{n+1} = mean(calibration weights).
+weighted_conformal_quantile <- function(scores, weights, alpha) {
+  n <- length(scores)
+  ord <- order(scores)
+  sorted_scores <- scores[ord]
+  sorted_weights <- weights[ord]
+  total_weight <- sum(sorted_weights)
+  w_test <- mean(weights)
+  cumw <- cumsum(sorted_weights) / (total_weight + w_test)
+  idx <- which(cumw >= 1 - alpha)[1]
+  if (is.na(idx)) return(Inf)
+  sorted_scores[idx]
+}
