@@ -431,11 +431,14 @@ ambiguous cases get larger sets.</p>
 <span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;classification&quot;</span></span>
 <span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>)</span>
 <span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a></span>
-<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">conformal_aps</span>(x, y, <span class="at">model =</span> clf, <span class="at">x_new =</span> x_new, <span class="at">alpha =</span> <span class="fl">0.10</span>)</span>
-<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="fu">print</span>(result)</span>
-<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a></span>
-<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co"># Most predictions are a single class; ambiguous ones include 2-3</span></span>
-<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="fu">table</span>(<span class="fu">set_size</span>(result))</span></code></pre></div>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co"># APS is randomised by default, which is the method as published. Pass `seed`</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co"># for reproducible sets; `randomize = FALSE` gives deterministic but materially</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co"># more conservative ones.</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">conformal_aps</span>(x, y, <span class="at">model =</span> clf, <span class="at">x_new =</span> x_new, <span class="at">alpha =</span> <span class="fl">0.10</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="fu">print</span>(result)</span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co"># Most predictions are a single class; ambiguous ones include 2-3</span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="fu">table</span>(<span class="fu">set_size</span>(result))</span></code></pre></div>
 </div>
 <div id="mondrian-conformal-group-conditional-coverage" class="section level2">
 <h2>Mondrian conformal: group-conditional coverage</h2>
@@ -501,9 +504,9 @@ calibration and efficiency:</p>
 <span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt; ── Conformal Method Comparison ─────────────────────────────────────────────────</span></span>
 <span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; • split: coverage = 0.89, mean width = 3.388, time = 0s</span></span>
-<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt; • cv: coverage = 0.89, mean width = 3.308, time = 0.019s</span></span>
-<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt; • jackknife: coverage = 0.89, mean width = 3.335, time = 15.386s</span></span></code></pre></div>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; • split: coverage = 0.89, mean width = 3.388, time = 0.001s</span></span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt; • cv: coverage = 0.89, mean width = 3.308, time = 0.025s</span></span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt; • jackknife: coverage = 0.89, mean width = 3.335, time = 0.415s</span></span></code></pre></div>
 </div>
 <div id="choosing-a-method" class="section level2">
 <h2>Choosing a method</h2>
@@ -541,7 +544,7 @@ calibration and efficiency:</p>
 <tr class="even">
 <td>Multi-class classification</td>
 <td><code>conformal_aps()</code></td>
-<td>Adaptive set sizes, well-calibrated</td>
+<td>Adaptive set sizes, randomised by default</td>
 </tr>
 <tr class="odd">
 <td>Classification with many classes</td>

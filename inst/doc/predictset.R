@@ -53,7 +53,10 @@ result <- conformal_split(x, y, model = fit, x_new = x_new)
 #   type = "classification"
 # )
 # 
-# result <- conformal_aps(x, y, model = clf, x_new = x_new, alpha = 0.10)
+# # APS is randomised by default, which is the method as published. Pass `seed`
+# # for reproducible sets; `randomize = FALSE` gives deterministic but materially
+# # more conservative ones.
+# result <- conformal_aps(x, y, model = clf, x_new = x_new, alpha = 0.10, seed = 1)
 # print(result)
 # 
 # # Most predictions are a single class; ambiguous ones include 2-3

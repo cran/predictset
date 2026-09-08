@@ -1,6 +1,6 @@
 Package: predictset
 Title: Conformal Prediction and Uncertainty Quantification
-Version: 0.3.0
+Version: 0.4.0
 Authors@R: person("Charles", "Coverdale", email = "charlesfcoverdale@gmail.com",
     role = c("aut", "cre", "cph"))
 Description: Implements conformal prediction methods for constructing
@@ -12,9 +12,11 @@ Description: Implements conformal prediction methods for constructing
     (Romano, Sesia, Candes 2020) <doi:10.48550/arXiv.2006.02544>,
     'Regularized Adaptive Prediction Sets' (Angelopoulos et al. 2021)
     <doi:10.48550/arXiv.2009.14193>, Mondrian conformal prediction for
-    group-conditional coverage (Vovk et al. 2005), weighted conformal
-    prediction for covariate shift (Tibshirani et al. 2019), and adaptive
-    conformal inference for sequential prediction (Gibbs and Candes 2021).
+    group-conditional coverage (Vovk, Gammerman, and Shafer 2005)
+    <doi:10.1007/b106715>, weighted conformal prediction for covariate shift
+    (Tibshirani et al. 2019) <doi:10.48550/arXiv.1904.06019>, and adaptive
+    conformal inference for sequential prediction (Gibbs and Candes 2021)
+    <doi:10.48550/arXiv.2106.00170>.
     All methods are distribution-free and provide calibrated uncertainty
     quantification without parametric assumptions. Works with any model that can
     produce predictions from new data, including 'lm', 'glm', 'ranger',
@@ -22,7 +24,8 @@ Description: Implements conformal prediction methods for constructing
 License: MIT + file LICENSE
 Encoding: UTF-8
 Language: en-US
-URL: https://github.com/charlescoverdale/predictset
+URL: https://charlescoverdale.github.io/predictset/,
+        https://github.com/charlescoverdale/predictset
 BugReports: https://github.com/charlescoverdale/predictset/issues
 RoxygenNote: 7.3.3
 Depends: R (>= 4.1.0)
@@ -32,8 +35,8 @@ Suggests: testthat (>= 3.0.0), ranger, ggplot2, knitr, rmarkdown,
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2026-03-14 17:10:13 UTC; charlescoverdale
+Packaged: 2026-09-08 07:04:27 UTC; charlescoverdale
 Author: Charles Coverdale [aut, cre, cph]
 Maintainer: Charles Coverdale <charlesfcoverdale@gmail.com>
 Repository: CRAN
-Date/Publication: 2026-03-19 14:50:15 UTC
+Date/Publication: 2026-09-08 07:20:02 UTC
